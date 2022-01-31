@@ -15,12 +15,12 @@ import torchvision.transforms as transforms
 from adabelief_pytorch import AdaBelief
 from torch_poly_lr_decay import PolynomialLRDecay
 
-import dataloader as dl
 import models
 import attention as att
 import label as lb
-from torch.utils.tensorboard import SummaryWriter
 from datasets.cityscapes import cityscapesData
+
+from torch.utils.tensorboard import SummaryWriter
 
 #device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 device = torch.device('cpu')
@@ -109,8 +109,6 @@ def main():
 
     trainDataset = cityscapesData(args)
     valDataset = cityscapesData(args, eval=True)
-    # trainDataset = dl.trainDataset(args)
-    # valDataset = dl.valDataset(args)
 
     params = {'batch_size': args.batch_size,
           'shuffle': True,
