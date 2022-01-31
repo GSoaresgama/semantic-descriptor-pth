@@ -1,8 +1,10 @@
 *runs/
+*test/
 *.vscode
 *.pth
 *.png
 *.h5
+*.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

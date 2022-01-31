@@ -42,19 +42,17 @@ class trainDataset(torch.utils.data.Dataset):
         self.trainImages = sorted(glob(self.imagePath + '/train*/' + addPathImg))
         self.trainLabels = sorted(glob(self.labelPath + '/train*/' + addPathLabel))
 
+
         if(self.dataset == "cityscapes" and self.pathExtraImages != "" and self.pathAutoLabels != ""):
             self.trainImages += glob(self.pathExtraImages + '/train_extra/*/*.png')
             self.trainImages = sorted(self.trainImages)
             self.trainLabels += glob(self.pathAutoLabels + '/*/*.png')
             self.trainLabels = sorted(self.trainLabels)
 
-        
+        #self.trainLabels = self.trainLabels[:4000]
+        #self.trainImages = self.trainImages[:4000]
 
-        #/home/gama/Documentos/datasets/cityscapes/leftImg8bit_trainextra/leftImg8bit/train_extra/heidelberg/heidelberg_000000_001085_leftImg8bit.png
-        #/home/gama/Documentos/datasets/cityscapes/auto_coarse/heidelberg/heidelberg_000000_001085_gtCoarse_labelIds.png
-        # print(self.trainImages[4000])
-        # print(self.trainLabels[4000])
-
+        #self.trainImages = sorted(list(set(self.trainImages) - set(glob("temp/*"))))
 
         ignore_label = 19
         
@@ -146,8 +144,9 @@ class trainDataset(torch.utils.data.Dataset):
 
     def convertLabel(self, label):
         temp = label.copy()
+        #ignore_label = 19
         for id, trainID in self.label_mapping.items():
-            label[temp == id] = trainID
+            label[temp == id] = trainID    
 
         return label
 
@@ -158,19 +157,14 @@ class trainDataset(torch.utils.data.Dataset):
         # 3. Return a data pair (e.g. image and label).
         imgPath = self.trainImages[index]
         labelPath = self.trainLabels[index]
-
-        # print(imgPath)
-        # print(labelPath)
-        
+        #print(imgPath)
+        #print(labelPath)
         image = cv2.imread(imgPath, cv2.IMREAD_COLOR)
         label = cv2.imread(labelPath, cv2.IMREAD_GRAYSCALE)
-        print(label)
-        
 
         self.shape = image.shape
         image = image[:,:,::-1]
         image, label = self.augmentData(image, label)
-        # print(label)
        
         if(self.dataset == "cityscapes"):
             label = self.convertLabel(label)
@@ -182,18 +176,13 @@ class trainDataset(torch.utils.data.Dataset):
         
         image = torch.from_numpy(image)
         label = torch.from_numpy(label)
-        
         label = label.long()
-        # print(label)
+
         label = F.one_hot(label, num_classes=20)
-        # print("label one hot: ", label.shape)
-        # print(label)
-        # print("image", imgPath)
-        # print("label", labelPath)
-        # exit()
         label = label.permute((2, 0, 1))
+        #print("label one hot: ", label.shape)
         label = label.to(torch.float32)
-        
+        #label[19,:,:] = 0
         return image, label
 
     def __len__(self):
@@ -251,11 +240,11 @@ class valDataset(torch.utils.data.Dataset):
 
         image = cv2.imread(imgPath, cv2.IMREAD_COLOR)
         label = cv2.imread(labelPath, cv2.IMREAD_GRAYSCALE)
-        
+
         self.shape = image.shape
         image = image[:,:,::-1]
 
-        image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_LINEAR)
         label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
 
         label = self.convertLabel(label)
@@ -271,7 +260,6 @@ class valDataset(torch.utils.data.Dataset):
         
         label = F.one_hot(label, num_classes=20)
         label = label.permute((2, 0, 1))
-
 
         return image, label
 

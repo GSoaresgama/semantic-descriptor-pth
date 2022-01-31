@@ -17,10 +17,12 @@ from torch_poly_lr_decay import PolynomialLRDecay
 
 import dataloader as dl
 import models
+import attention as att
 import label as lb
 from torch.utils.tensorboard import SummaryWriter
+from datasets.cityscapes import cityscapesData
 
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 device = torch.device('cpu')
 
 # ============== #
@@ -84,113 +86,121 @@ def displayImage(imgList, filename = "test.png"):
 def iou_coef(pred, labels):
     smooth = 0.01
     intersection = np.sum(np.abs(labels[0:18]*pred[0:18]))
+    #print("intersection: ", intersection)
     # intersection = np.sum(np.abs(labels*pred))
-    union = np.sum(labels) + np.sum(pred) - intersection
+    union = np.sum(labels[0:18]) + np.sum(pred[0:18]) - intersection
+    #print("union: ", union)
     iou = np.mean((intersection+smooth)/(union+smooth))
     return iou
 
-def my_loss(out, target):
-    # target[:][19] = np.zeros((target.shape[2], target.shape[3]))
-    loss = ((-out+1e-5).log() * target)[:18].sum(dim=1).mean()
-    return loss
+#def my_loss(out, target):
+    #loss = (-(out+1e-5).log() * target).sum(dim=1).mean()
+    #return loss
 
+def my_loss(out, target):
+    #print("out shape:", out.shape)
+    #print("target shape:", target.shape)
+    loss = (-(out+1e-5).log() * target)[:,0:18].sum(dim=1).mean()
+    return loss
+    
 def main():
     for arg in vars(args):
         print (arg, getattr(args, arg))
 
-    trainDataset = dl.trainDataset(args)
-    valDataset = dl.valDataset(args)
+    trainDataset = cityscapesData(args)
+    valDataset = cityscapesData(args, eval=True)
+    # trainDataset = dl.trainDataset(args)
+    # valDataset = dl.valDataset(args)
 
     params = {'batch_size': args.batch_size,
           'shuffle': True,
           'num_workers': 4}
-
     val_params = {'batch_size': 1,
-        'shuffle': False,
-        'num_workers': 4}
-
+          'shuffle': False,
+          'num_workers': 4}
+    
     training_generator = torch.utils.data.DataLoader(trainDataset, **params)
     val_generator = torch.utils.data.DataLoader(valDataset, **val_params)
 
     model = models.wideResnet50()
-    model.to(device)
-    # model.load_state_dict(torch.load('wr50v2.pth'))
+    
+    if(args.load_model_path != ""):
+        model.load_state_dict(torch.load(args.load_model_path))
+    
+    # model.load_state_dict(torch.load('test.pth'))
+    # model.delete_features()
+    # torch.save(model.state_dict(), "test.pth")
 
-    # weight = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]
-    # weight = torch.Tensor(weight)
-    # criterion = nn.CrossEntropyLoss(weight=weight)
-    # criterion = nn.CrossEntropyLoss(ignore_index=19)
-
-    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    optimizer = AdaBelief(model.parameters(), lr=0.01, eps=1e-16, betas=(0.9,0.999), weight_decouple = False, rectify = False)
-    lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=300000, end_learning_rate=0.00001, power=2.0)
+    # att_model = att.attModel((512, 1024))
 
     # if torch.cuda.is_available():
-    #     model.cuda()
+        # model.cuda()
+    model.to(device)
+    
+    #weight = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]
+    #weight_pth = torch.Tensor(weight).to(device)
+    #criterion = nn.CrossEntropyLoss(weight=weight_pth)
+    #criterion = nn.CrossEntropyLoss()
+    #criterion = nn.CrossEntropyLoss(ignore_index=19)
+
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    #optimizer = AdaBelief(model.parameters(), lr=0.01, eps=1e-16, betas=(0.9,0.999), weight_decouple = False, rectify = False)
+    optimizer = AdaBelief(model.parameters(), lr=0.00001, eps=1e-16, betas=(0.9,0.999), weight_decouple = False, rectify = False)
+    #lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
+
+    log_dir = None if(args.metrics_path == "") else args.metrics_path
+    writer = SummaryWriter(log_dir=log_dir)
 
     maxIOU = -1
-
     epochs = args.num_epochs
-    writer = SummaryWriter()
-
-    # print(model)
-
-    i=0
+    
     for e in tqdm(range(epochs)):
-
+        #model.train()
         for l_image, l_label in tqdm(training_generator, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
-            optimizer.zero_grad()
 
             image, labels = l_image.to(device), l_label.to(device)
-            out = model(image)
+
+            optimizer.zero_grad()
+            #model.zero_grad()
+            truck, out = model(image)         
+            # _, predH = model(image)         
+            # att_model(truck, out, predH)
+            #print("out device:", out.get_device())
+            #print("labels device:", labels.get_device())
             loss = my_loss(out, labels)
-            # loss = criterion(out, labels)
+            
+            #loss = criterion(out, labels)
 
             # Backward and optimize
+            
             loss.backward()
             optimizer.step()
-            lr_schedule.step()
-
-            imgList = []
-            imgList.append({'title' : 'Original', 'img' : l_image[0].permute(1, 2, 0)})
-            # print(l_image.shape)
-            # print(l_label.shape)
-
-            # print(out.shape)
-            out = model(image)
-            c_pred = out.cpu().detach().numpy()[0]
-            # print(c_pred.shape)
-            # c_pred = np.transpose(c_pred,(1, 2, 0))
-            # print(c_pred.shape)
-
-            c_pred = trainDataset.makeColorPred(c_pred)
-            c_label = trainDataset.makeColorPred(l_label[0])
-            # c_label = trainDataset.makeColorPred(l_label[0])
-            # print(l_label[0].cpu().detach().numpy())        
-            # c_label = lb.cityscapes_pallete[l_label[0], :]
-            
-            imgList.append({'title' : 'Color pred', 'img' : c_pred})
-            imgList.append({'title' : 'Color label', 'img' : c_label})
-            # imgList.append({'title' : 'Pred', 'img' : pred_disp})
-            displayImage(imgList, filename="train.png")
             break
+            #lr_schedule.step()
+            
         #-----------validation------------
+        #model.eval()
         mIOUsum = 0
         for l_image, l_label in tqdm(val_generator, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
             image, labels = l_image.to(device), l_label.to(device)
-            out = model(image)
+            truck, out = model(image)
+            #print(out.shape)
+            #print(out.cpu().detach().numpy().shape)
             mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
             mIOUsum += mIOU
             break
-        mIOUsum = float(mIOUsum/len(val_generator))
 
+        mIOUsum = float(mIOUsum/len(val_generator))
+        print("\n\n")
+        print(mIOUsum)
+        print("\n\n")
         writer.add_scalar('Loss/train', loss, e)
         writer.add_scalar('Accuracy/val', mIOUsum, e)
-
+        
         #save model
         if(mIOUsum > maxIOU):
             maxIOU = mIOUsum
-            if(e>0.6*epochs and args.save_model_path != ""):
+            if(e>0.4*epochs and args.save_model_path != ""):
                 torch.save(model.state_dict(), args.save_model_path)
                 
     writer.flush()
@@ -199,7 +209,7 @@ def main():
     print("Max mIOU: ", maxIOU)
 
 
-    for l_image, l_label in training_generator:
+    for l_image, l_label in val_generator:
         image, labels = l_image.to(device), l_label.to(device)
         imgList = []
         imgList.append({'title' : 'Original', 'img' : l_image[0].permute(1, 2, 0)})
@@ -207,17 +217,15 @@ def main():
         # print(l_label.shape)
 
         # print(out.shape)
-        out = model(image)
-        c_pred = out.cpu().detach().numpy()[0]
-        # print(c_pred.shape)
-        # c_pred = np.transpose(c_pred,(1, 2, 0))
+        truck, out = model(image)
+        c_pred = out.cpu().detach().numpy()[0]#.transpose((1, 2, 0))
         # print(c_pred.shape)
 
         c_pred = trainDataset.makeColorPred(c_pred)
-        c_label = trainDataset.makeColorPred(l_label[0])
         # c_label = trainDataset.makeColorPred(l_label[0])
-        # print(l_label[0].cpu().detach().numpy())        
-        # c_label = lb.cityscapes_pallete[l_label[0], :]
+        
+        c_label = trainDataset.makeColorPred(l_label[0])
+        #c_label = lb.cityscapes_pallete[l_label[0], :]
         
         imgList.append({'title' : 'Color pred', 'img' : c_pred})
         imgList.append({'title' : 'Color label', 'img' : c_label})
