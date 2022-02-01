@@ -15,8 +15,8 @@ class attModel(nn.Module):
         # print(trunck)
         
         self.attHead = nn.Sequential(
-            nn.ConvTranspose2d(2048, 516, kernel_size=(3,3), stride=(2,2), padding=1, output_padding=1, bias=False),
-            nn.BatchNorm2d(516),
+            nn.ConvTranspose2d(2048, 512, kernel_size=(3,3), stride=(2,2), padding=1, output_padding=1, bias=False),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.ConvTranspose2d(512, 256, kernel_size=(3,3), stride=(2,2), padding=1, output_padding=1, bias=False),
             nn.BatchNorm2d(256),
@@ -24,13 +24,15 @@ class attModel(nn.Module):
             nn.ConvTranspose2d(256, 128, kernel_size=(3,3), stride=(2,2), padding=1, output_padding=1, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, kernel_size=(5,5), stride=(2,2), padding=1, output_padding=1, bias=False),
+            nn.ConvTranspose2d(128, 64, kernel_size=(3,3), stride=(2,2), padding=1, output_padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Conv2d(64, 1, kernel_size=(1,1), stride=(1,1)),
+            nn.ConvTranspose2d(64, 32, kernel_size=(5,5), stride=(2,2), padding=2, output_padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 1, kernel_size=(1,1), stride=(1,1)),
             nn.Softmax(dim=1)
         )
-
         for m in self.attHead:
             if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
                 torch.nn.init.xavier_normal_(m.weight, gain = 1)
@@ -41,6 +43,6 @@ class attModel(nn.Module):
         attL = torch.mul(predL, attMask)
         resize = torchvision.transforms.Resize(self.shape)
         attH = torch.mul((1-resize(attMask)), predH)
-        output = torchvision.transforms.Resize(attL) + attH
+        output = resize(attL) + attH
 
-        return output
+        return attMask, output

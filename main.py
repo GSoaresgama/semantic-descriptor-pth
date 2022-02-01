@@ -18,7 +18,8 @@ from torch_poly_lr_decay import PolynomialLRDecay
 import models
 import attention as att
 import label as lb
-from datasets.cityscapes import cityscapesData
+import train
+from datasets.cityscapes import attCityscapes, cityscapes
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -77,11 +78,6 @@ def displayImage(imgList, filename = "test.png"):
     # plt.show()
     plt.savefig(filename)
 
-# def iou_coef(y_true, y_pred, smooth=1):
-#   intersection = K.sum(K.abs(y_true * y_pred), axis=[1,2,3])
-#   union = K.sum(y_true,[1,2,3])+K.sum(y_pred,[1,2,3])-intersection
-#   iou = K.mean((intersection + smooth) / (union + smooth), axis=0)
-#   return iou
 
 def iou_coef(pred, labels):
     smooth = 0.01
@@ -93,9 +89,6 @@ def iou_coef(pred, labels):
     iou = np.mean((intersection+smooth)/(union+smooth))
     return iou
 
-#def my_loss(out, target):
-    #loss = (-(out+1e-5).log() * target).sum(dim=1).mean()
-    #return loss
 
 def my_loss(out, target):
     #print("out shape:", out.shape)
@@ -103,12 +96,16 @@ def my_loss(out, target):
     loss = (-(out+1e-5).log() * target)[:,0:18].sum(dim=1).mean()
     return loss
     
+
 def main():
     for arg in vars(args):
         print (arg, getattr(args, arg))
 
-    trainDataset = cityscapesData(args)
-    valDataset = cityscapesData(args, eval=True)
+    trainDataset = cityscapes(args)
+    valDataset = cityscapes(args, eval=True)
+
+    # trainDataset = attCityscapes(args)
+    # valDataset = attCityscapes(args, eval=True)
 
     params = {'batch_size': args.batch_size,
           'shuffle': True,
@@ -129,11 +126,9 @@ def main():
     # model.delete_features()
     # torch.save(model.state_dict(), "test.pth")
 
-    # att_model = att.attModel((512, 1024))
 
     # if torch.cuda.is_available():
         # model.cuda()
-    model.to(device)
     
     #weight = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]
     #weight_pth = torch.Tensor(weight).to(device)
@@ -152,6 +147,14 @@ def main():
     maxIOU = -1
     epochs = args.num_epochs
     
+
+    if(args.mode == "train_att"):
+        attModel = att.attModel((1024, 2048))
+        train.trainAtt(args, model, attModel, training_generator, val_generator, device)
+        return
+    
+    model.to(device)
+
     for e in tqdm(range(epochs)):
         #model.train()
         for l_image, l_label in tqdm(training_generator, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):

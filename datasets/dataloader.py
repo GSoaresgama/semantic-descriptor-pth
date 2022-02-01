@@ -148,9 +148,18 @@ class baseDataloader(torch.utils.data.Dataset):
 
         return label
 
+    def normAndTranspImg(self, image):
+        image = image.astype(np.float32)
+        image = image / 255.0
+        image = image.transpose((2, 0, 1))
+        return image
+
     def makeColorPred(self, label):
         clabel = lb.cityscapes_pallete[np.argmax(label, axis=0), :]  
         # clabel = clabel[:,:,0:3]
 
         return clabel
 
+    def __len__(self):
+        # You should change 0 to the total size of your dataset.
+        return len(self.images)
