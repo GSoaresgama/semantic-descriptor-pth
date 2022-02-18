@@ -23,8 +23,8 @@ from datasets.cityscapes import attCityscapes, cityscapes
 
 from torch.utils.tensorboard import SummaryWriter
 
-#device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-device = torch.device('cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cpu')
 
 # ============== #
 #  Args Parsing  #
@@ -104,8 +104,8 @@ def main():
     trainDataset = cityscapes(args)
     valDataset = cityscapes(args, eval=True)
 
-    # trainDataset = attCityscapes(args)
-    # valDataset = attCityscapes(args, eval=True)
+    #trainDataset = attCityscapes(args)
+    #valDataset = attCityscapes(args, eval=True)
 
     params = {'batch_size': args.batch_size,
           'shuffle': True,
@@ -136,9 +136,7 @@ def main():
     #criterion = nn.CrossEntropyLoss()
     #criterion = nn.CrossEntropyLoss(ignore_index=19)
 
-    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    #optimizer = AdaBelief(model.parameters(), lr=0.01, eps=1e-16, betas=(0.9,0.999), weight_decouple = False, rectify = False)
-    optimizer = AdaBelief(model.parameters(), lr=0.00001, eps=1e-16, betas=(0.9,0.999), weight_decouple = False, rectify = False)
+    optimizer = AdaBelief(model.parameters(), lr=0.00001, eps=1e-16, betas=(0.9,0.999))
     #lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
 
     log_dir = None if(args.metrics_path == "") else args.metrics_path
@@ -149,7 +147,11 @@ def main():
     
 
     if(args.mode == "train_att"):
-        attModel = att.attModel((1024, 2048))
+        attModel = att.attModel((512, 1024))
+
+        if(args.load_att_path != ""):
+            attModel.load_state_dict(torch.load(args.load_att_path))
+        
         train.trainAtt(args, model, attModel, training_generator, val_generator, device)
         return
     
@@ -162,22 +164,16 @@ def main():
             image, labels = l_image.to(device), l_label.to(device)
 
             optimizer.zero_grad()
-            #model.zero_grad()
             truck, out = model(image)         
-            # _, predH = model(image)         
-            # att_model(truck, out, predH)
-            #print("out device:", out.get_device())
-            #print("labels device:", labels.get_device())
             loss = my_loss(out, labels)
             
             #loss = criterion(out, labels)
 
             # Backward and optimize
-            
             loss.backward()
             optimizer.step()
-            break
             #lr_schedule.step()
+            # break
             
         #-----------validation------------
         #model.eval()
@@ -189,7 +185,7 @@ def main():
             #print(out.cpu().detach().numpy().shape)
             mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
             mIOUsum += mIOU
-            break
+            # break
 
         mIOUsum = float(mIOUsum/len(val_generator))
         print("\n\n")

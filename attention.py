@@ -27,22 +27,22 @@ class attModel(nn.Module):
             nn.ConvTranspose2d(128, 64, kernel_size=(3,3), stride=(2,2), padding=1, output_padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=(5,5), stride=(2,2), padding=2, output_padding=1, bias=False),
+            nn.ConvTranspose2d(64, 32, kernel_size=(3,3), stride=(2,2), padding=1, output_padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Conv2d(32, 1, kernel_size=(1,1), stride=(1,1)),
-            nn.Softmax(dim=1)
+            nn.Sigmoid()
         )
         for m in self.attHead:
             if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
                 torch.nn.init.xavier_normal_(m.weight, gain = 1)
 
 
-    def forward(self, input_truck, predL, predH):
-        attMask = self.attHead(input_truck)
-        attL = torch.mul(predL, attMask)
+    def forward(self, input_trunk, predL, predH):
         resize = torchvision.transforms.Resize(self.shape)
+        attMask = self.attHead(input_trunk)
+        attL = torch.mul(predL, attMask)
         attH = torch.mul((1-resize(attMask)), predH)
-        output = resize(attL) + attH
+        output = torch.add(resize(attL),attH)
 
         return attMask, output

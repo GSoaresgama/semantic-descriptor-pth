@@ -124,10 +124,11 @@ class baseDataloader(torch.utils.data.Dataset):
         
         return image
 
-
     def augmentData(self, image, label):
         if(random() < 0.5):
-            image, label = self.zoon(image, label)
+            # image, label = self.zoon(image, label)
+            image = cv2.resize(image, (int(self.img_width/2), int(self.img_height/2)), interpolation=cv2.INTER_AREA)
+            label = cv2.resize(label, (int(self.img_width/2), int(self.img_height/2)), interpolation=cv2.INTER_NEAREST)
         else:
             image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
             label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)

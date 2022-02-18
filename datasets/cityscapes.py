@@ -40,11 +40,10 @@ class cityscapes(baseDataloader):
         if(not self.eval):
             image, label = self.augmentData(image, label)
         else:
-            image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_LINEAR)
+            image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
             label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
 
-        if(self.dataset == "cityscapes"):
-            label = self.convertLabel(label)
+        label = self.convertLabel(label)
 
         #normalizer image
         image = image.astype(np.float32)
@@ -84,15 +83,13 @@ class attCityscapes(baseDataloader):
         
         if(image.shape[0] != self.img_height or image.shape[1] != self.img_width):
             imageH = cv2.resize(image, (self.img_width, self.img_height))
-            label = cv2.resize(label, (self.img_height, self.img_height))
+            label = cv2.resize(label, (self.img_width, self.img_height))
         else:
             imageH = image.copy()
 
-        imageL = cv2.resize(imageH, (int(self.img_width/2), int(self.img_height/2)), interpolation=cv2.INTER_LINEAR)
+        imageL = cv2.resize(image, (int(self.img_width/2), int(self.img_height/2)), interpolation=cv2.INTER_AREA)
 
-        
-        if(self.dataset == "cityscapes"):
-            label = self.convertLabel(label)
+        label = self.convertLabel(label)
 
         #normalize images
         imageL = self.normAndTranspImg(imageL)

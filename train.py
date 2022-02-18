@@ -51,8 +51,7 @@ def ct_loss(out, target):
     #print("out shape:", out.shape)
     #print("target shape:", target.shape)
     loss = (-(out+1e-5).log() * target)[:,0:18].sum(dim=1).mean()
-    return loss
-    
+    return loss 
 
 
 def trainTruck(args, model, trainDataset, valDataset):
@@ -61,21 +60,20 @@ def trainTruck(args, model, trainDataset, valDataset):
 
 def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
     
+    truckModel.eval()
     truckModel.to(device)
     attModel.to(device)
 
-    optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9,0.999), weight_decouple = False, rectify = False)
-    lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
+    optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9,0.999))
+    #lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
 
-    log_dir = None if(args.metrics_path == "") else args.metrics_path
+    log_dir = None if(args.metrics_path == "") else "runs/" + args.metrics_path
     writer = SummaryWriter(log_dir=log_dir)
 
     maxIOU = -1
     epochs = args.num_epochs
     
     for e in tqdm(range(epochs)):
-        truckModel.eval()
-        attModel.train()
         for l_imageL, l_imageH, l_label in tqdm(trainGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
 
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
@@ -86,31 +84,28 @@ def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
 
             attMask, out = attModel(truck, predL, predH)
 
-            #print("out device:", out.get_device())
-            #print("labels device:", labels.get_device())
             loss = ct_loss(out, labels)
             
             #loss = criterion(out, labels)
 
             # Backward and optimize
-            
             loss.backward()
             optimizer.step()
-            lr_schedule.step()
-            
+            #lr_schedule.step()
+            # break
         #-----------validation------------
         mIOUsum = 0
-        attModel.eval()
         for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
             truck, predL = truckModel(imageL)         
             _, predH = truckModel(imageH)         
 
-            attMask, out = attModel(truck, out, predH)
+            attMask, out = attModel(truck, predL, predH)
             #print(out.shape)
             #print(out.cpu().detach().numpy().shape)
             mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
             mIOUsum += mIOU
+            # break
 
         mIOUsum = float(mIOUsum/len(valGen))
         print("\n\n")
@@ -122,24 +117,22 @@ def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
         #save model
         if(mIOUsum > maxIOU):
             maxIOU = mIOUsum
-            if(e>0.4*epochs and args.save_model_path != ""):
+            if(e>-0.4*epochs and args.save_model_path != ""):
                 torch.save(attModel.state_dict(), args.save_model_path)
     
     for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
         imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
-        imgList = []
-        imgList.append({'title' : 'Original', 'img' : imageL[0].permute(1, 2, 0)})
-        # print(l_image.shape)
-        # print(l_label.shape)
+        # print("imageL.shape",imageL.shape)
 
-        # print(out.shape)
         truck, predL = truckModel(imageL)
         _, predH = truckModel(imageH)         
 
         attMask, out = attModel(truck, predL, predH)
-        c_predL = predL.cpu().detach().numpy()[0]#.transpose((1, 2, 0))
-        c_predH = predH.cpu().detach().numpy()[0]#.transpose((1, 2, 0))
-        c_pred = out.cpu().detach().numpy()[0]#.transpose((1, 2, 0))
+        imgList = []
+        imgList.append({'title' : 'Original', 'img' : imageL.cpu()[0].permute(1, 2, 0)})
+        c_predL = predL.cpu().detach().numpy()[0]
+        c_predH = predH.cpu().detach().numpy()[0]
+        c_pred = out.cpu().detach().numpy()[0]
         # print(c_pred.shape)
 
         c_predL = lb.cityscapes_pallete[np.argmax(c_predL, axis=0), :]  
@@ -149,9 +142,9 @@ def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
         
         imgList.append({'title' : 'Color predL', 'img' : c_predL})
         imgList.append({'title' : 'Color predH', 'img' : c_predH})
+        imgList.append({'title' : 'attMask', 'img' : attMask.cpu().detach()[0].permute(1, 2, 0).numpy()})
         imgList.append({'title' : 'Color pred', 'img' : c_pred})
         imgList.append({'title' : 'Color label', 'img' : c_label})
-        # imgList.append({'title' : 'Pred', 'img' : pred_disp})
         displayImage(imgList, filename="att.png")
         break
     
