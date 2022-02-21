@@ -2,29 +2,32 @@ import pandas as pd
 import pylab
 # import scipy
 from scipy import stats, optimize, interpolate
-my_data_sem = pd.Series([1.270882,
-1.541523,
-1.553915,
-1.255453,
-1.456378,
-1.763657,
-1.167109,
-1.467461,
-4.556010,
-2.924524])
 
+my_data_sem = pd.Series([
+    1.270882,
+    1.541523,
+    1.553915,
+    1.255453,
+    1.456378,
+    1.763657,
+    1.167109,
+    1.467461,
+    4.556010,
+    2.924524
+])
 
-my_data = pd.Series([5.188256,
-4.186968,
-3.238907,
-4.614054,
-1.681659,
-1.822847,
-3.209124,
-3.871628,
-5.168882,
-1.372640])
-
+my_data = pd.Series([
+    5.188256,
+    4.186968,
+    3.238907,
+    4.614054,
+    1.681659,
+    1.822847,
+    3.209124,
+    3.871628,
+    5.168882,
+    1.372640
+])
 
 # res = stats.normaltest(my_data_sem, axis=0, nan_policy='propagate')
 # ORB = stats.skewtest(my_data, axis=0, nan_policy='propagate')

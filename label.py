@@ -2,22 +2,24 @@ import numpy as np
 
 from collections import namedtuple
 
-cityscapes_pallete = np.array([[128, 64, 128], [244, 35, 231], [69, 69, 69],
-                      # 0 = road, 1 = sidewalk, 2 = building
-                      [102, 102, 156], [190, 153, 153], [153, 153, 153],
-                      # 3 = wall, 4 = fence, 5 = pole
-                      [250, 170, 29], [219, 219, 0], [106, 142, 35],
-                      # 6 = traffic light, 7 = traffic sign, 8 = vegetation
-                      [152, 250, 152], [69, 129, 180], [219, 19, 60],
-                      # 9 = terrain, 10 = sky, 11 = person
-                      [255, 0, 0], [0, 0, 142], [0, 0, 69],
-                      # 12 = rider, 13 = car, 14 = truck
-                      [0, 60, 100], [0, 79, 100], [0, 0, 230],
-                      # 15 = bus, 16 = train, 17 = motocycle
-                      [119, 10, 32], [0,0,0]])
-                      # 18 = bicycle, 19 = ignore
+cityscapes_pallete = np.array([
+    # 0 = road, 1 = sidewalk, 2 = building
+    [128, 64, 128], [244, 35, 231], [69, 69, 69],
+    # 3 = wall, 4 = fence, 5 = pole
+    [102, 102, 156], [190, 153, 153], [153, 153, 153],
+    # 6 = traffic light, 7 = traffic sign, 8 = vegetation
+    [250, 170, 29], [219, 219, 0], [106, 142, 35],
+    # 9 = terrain, 10 = sky, 11 = person
+    [152, 250, 152], [69, 129, 180], [219, 19, 60],
+    # 12 = rider, 13 = car, 14 = truck
+    [255, 0, 0], [0, 0, 142], [0, 0, 69],
+    # 15 = bus, 16 = train, 17 = motocycle
+    [0, 60, 100], [0, 79, 100], [0, 0, 230],
+    # 18 = bicycle, 19 = ignore
+    [119, 10, 32], [0, 0, 0]
+])
 
-cityscapes_pallete = cityscapes_pallete/255.0
+cityscapes_pallete = cityscapes_pallete / 255.0
 
 # Label = namedtuple( 'Label' , ['name', 'id', 'trainId', 'category', 'categoryId', 'hasInstances', 'ignoreInEval', 'color',] )
 

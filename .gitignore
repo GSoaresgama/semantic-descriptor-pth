@@ -1,4 +1,5 @@
 *runs/
+*attention1/
 *test/
 *.vscode
 *.pth

@@ -19,7 +19,7 @@ from torch_poly_lr_decay import PolynomialLRDecay
 import models
 import attention as att
 import label as lb
-from datasets.cityscapes import cityscapes
+from datasets.cityscapes import Cityscapes
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -54,14 +54,14 @@ def ct_loss(out, target):
     return loss 
 
 
-def trainTruck(args, model, trainDataset, valDataset):
+def trainTrunk(args, model, trainDataset, valDataset):
     pass
 
 
-def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
+def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
     
-    truckModel.eval()
-    truckModel.to(device)
+    trunkModel.eval()
+    trunkModel.to(device)
     attModel.to(device)
 
     optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9,0.999))
@@ -79,10 +79,10 @@ def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
 
             optimizer.zero_grad()
-            truck, predL = truckModel(imageL)         
-            _, predH = truckModel(imageH)         
+            trunk, predL = trunkModel(imageL)
+            _, predH = trunkModel(imageH)
 
-            attMask, out = attModel(truck, predL, predH)
+            attMask, out = attModel(trunk, predL, predH)
 
             loss = ct_loss(out, labels)
             
@@ -97,10 +97,10 @@ def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
         mIOUsum = 0
         for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
-            truck, predL = truckModel(imageL)         
-            _, predH = truckModel(imageH)         
+            trunk, predL = trunkModel(imageL)
+            _, predH = trunkModel(imageH)
 
-            attMask, out = attModel(truck, predL, predH)
+            attMask, out = attModel(trunk, predL, predH)
             #print(out.shape)
             #print(out.cpu().detach().numpy().shape)
             mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
@@ -115,21 +115,21 @@ def trainAtt(args, truckModel, attModel, trainGen, valGen, device):
         writer.add_scalar('Accuracy/val', mIOUsum, e)
         
         #save model
-        if(mIOUsum > maxIOU):
+        if mIOUsum > maxIOU:
             maxIOU = mIOUsum
-            if(e>-0.4*epochs and args.save_model_path != ""):
+            if e>-0.4*epochs and args.save_model_path != "":
                 torch.save(attModel.state_dict(), args.save_model_path)
     
     for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
         imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
         # print("imageL.shape",imageL.shape)
 
-        truck, predL = truckModel(imageL)
-        _, predH = truckModel(imageH)         
+        trunk, predL = trunkModel(imageL)
+        _, predH = trunkModel(imageH)
 
-        attMask, out = attModel(truck, predL, predH)
-        imgList = []
-        imgList.append({'title' : 'Original', 'img' : imageL.cpu()[0].permute(1, 2, 0)})
+        attMask, out = attModel(trunk, predL, predH)
+        imgList = [{'title': 'Original', 'img': imageL.cpu()[0].permute(1, 2, 0)},
+                   {'title': 'Original', 'img': imageL.cpu()[0].permute(1, 2, 0)}]
         c_predL = predL.cpu().detach().numpy()[0]
         c_predH = predH.cpu().detach().numpy()[0]
         c_pred = out.cpu().detach().numpy()[0]
