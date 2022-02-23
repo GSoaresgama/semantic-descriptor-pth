@@ -1,6 +1,7 @@
 from cProfile import label
 import math
 from random import random
+from sklearn import datasets
 from sympy import arg
 import torch
 import torchvision
@@ -34,12 +35,23 @@ class baseDataloader(torch.utils.data.Dataset):
         self.dataset = args.dataset
         self.eval = eval
 
-        addPathImg = "*/*_leftImg8bit.png"
-        addPathLabel = "*/*_labelIds.png"
+        if self.dataset == "cityscapes":
+            addPathImg = "*/*_leftImg8bit.png"
+            addPathLabel = "*/*_labelIds.png"
+        elif self.dataset == "kitti":
+            addPathImg = "image_2/*.png"
+            addPathLabel = "semantic/*.png"
 
-        if self.eval:  # validations
+        if self.eval:  # validation
             self.images = sorted(glob(self.imagePath + "/val*/" + addPathImg))
             self.labels = sorted(glob(self.labelPath + "/val*/" + addPathLabel))
+            if self.dataset == "kitti":
+                self.images = sorted(glob(self.imagePath + "/train*/" + addPathImg))
+                self.labels = sorted(glob(self.labelPath + "/train*/" + addPathLabel))
+
+                self.images = self.images[int(0.95 * len(self.images)) :]
+                self.labels = self.labels[int(0.95 * len(self.labels)) :]
+
         else:  # train
             self.images = sorted(glob(self.imagePath + "/train*/" + addPathImg))
             self.labels = sorted(glob(self.labelPath + "/train*/" + addPathLabel))
@@ -50,8 +62,9 @@ class baseDataloader(torch.utils.data.Dataset):
                 self.labels += glob(self.pathAutoLabels + "/*/*.png")
                 self.labels = sorted(self.labels)
 
-        # self.labels = self.labels[:4000]
-        # self.images = self.images[:4000]
+            elif self.dataset == "kitti":
+                self.images = self.images[0 : int(0.95 * len(self.images))]
+                self.labels = self.labels[0 : int(0.95 * len(self.labels))]
 
         ignore_label = 19
 
@@ -150,10 +163,10 @@ class baseDataloader(torch.utils.data.Dataset):
         return image
 
     def augmentData(self, image, label):
-        if random() < 0.5:
-            image, label = self.zoon(image, label)
-            # image = cv2.resize(image, (int(self.img_width / 2), int(self.img_height / 2)), interpolation=cv2.INTER_AREA)
-            # label = cv2.resize(label, (int(self.img_width / 2), int(self.img_height / 2)), interpolation=cv2.INTER_NEAREST)
+        if random() < 0.5 and self.dataset != "kitti":
+            # image, label = self.zoon(image, label)
+            image = cv2.resize(image, (int(self.img_width / 2), int(self.img_height / 2)), interpolation=cv2.INTER_AREA)
+            label = cv2.resize(label, (int(self.img_width / 2), int(self.img_height / 2)), interpolation=cv2.INTER_NEAREST)
         else:
             image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
             label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)

@@ -24,12 +24,14 @@ from datasets.cityscapes import attCityscapes, cityscapes
 
 from torch.utils.tensorboard import SummaryWriter
 
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 device = torch.device("cpu")
 
 # ============== #
 #  Args Parsing  #
 # ============== #
+
+
 def convert_arg_line_to_args(arg_line):
     for arg in arg_line.split():
         if not arg.strip():
@@ -41,6 +43,7 @@ parser = argparse.ArgumentParser(description="SemSeg TensorFlow 2 implementation
 parser.convert_arg_line_to_args = convert_arg_line_to_args
 
 parser.add_argument("--mode", type=str, help="train or test", default="train")
+parser.add_argument("--ft_flag", type=bool, help="train or test", default=False)
 parser.add_argument("--dataset", type=str, help="mapillary or cityscapes", required=True)
 parser.add_argument("--dataset_images_path", type=str, help="image path", required=True)
 parser.add_argument("--dataset_labels_path", type=str, help="label path", default="")
@@ -85,6 +88,9 @@ def main():
         training_generator = torch.utils.data.DataLoader(trainDataset, **params)
         val_generator = torch.utils.data.DataLoader(valDataset, **val_params)
 
+        print(len(training_generator))
+        print(len(val_generator))
+
         train.trainTrunk(args, model, training_generator, val_generator, device)
 
     elif args.mode == "train_att":
@@ -93,7 +99,7 @@ def main():
         training_generator = torch.utils.data.DataLoader(trainDataset, **params)
         val_generator = torch.utils.data.DataLoader(valDataset, **val_params)
 
-        attModel = att.attModel((512, 1024))
+        attModel = att.attModel((args.img_height, args.img_width))
 
         if args.load_att_path != "":
             attModel.load_state_dict(torch.load(args.load_att_path))

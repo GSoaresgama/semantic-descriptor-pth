@@ -52,4 +52,4 @@ class wideResnet50(nn.Module):
         trunk = self.new_model(input_imgs)
         output = self.upconvs(trunk)
 
-        return trunk, output
+        return trunk.detach(), output
