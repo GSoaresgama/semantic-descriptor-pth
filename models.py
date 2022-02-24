@@ -45,6 +45,14 @@ class wideResnet50(nn.Module):
             if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
                 torch.nn.init.xavier_normal_(m.weight, gain=1)
 
+    def freezeTrunk(self):
+        for param in self.new_model.parameters():
+            param.requires_grad = False
+
+    def unfreezeTrunk(self):
+        for param in self.new_model.parameters():
+            param.requires_grad = True
+
     def delete_features(self):
         del self.features
 

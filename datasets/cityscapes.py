@@ -71,12 +71,12 @@ class attCityscapes(baseDataloader):
         self.shape = image.shape
         image = image[:, :, ::-1]
 
-        if random() < 0.5:
+        if not self.eval and random() < 0.5:
             image = self.color(image)
 
         if image.shape[0] != self.img_height or image.shape[1] != self.img_width:
-            imageH = cv2.resize(image, (self.img_width, self.img_height))
-            label = cv2.resize(label, (self.img_width, self.img_height))
+            imageH = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
+            label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         else:
             imageH = image.copy()
 

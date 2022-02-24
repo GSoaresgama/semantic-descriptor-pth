@@ -104,6 +104,9 @@ def main():
         if args.load_att_path != "":
             attModel.load_state_dict(torch.load(args.load_att_path))
 
+        print(len(training_generator))
+        print(len(val_generator))
+        
         train.trainAtt(args, model, attModel, training_generator, val_generator, device)
 
 

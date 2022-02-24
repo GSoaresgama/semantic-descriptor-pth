@@ -6,7 +6,6 @@ import sys
 import argparse
 from PIL import Image
 import matplotlib.pyplot as plt
-from sklearn.model_selection import learning_curve
 from tqdm import tqdm
 
 import torch
@@ -60,9 +59,13 @@ def trainTrunk(args, model, trainGen, valGen, device):
 
     model.to(device)
 
-    optimizer = AdaBelief(model.parameters(), lr=learning_rate, eps=1e-16, betas=(0.9, 0.999))
-
-    if not ft_flag:
+    freeze_flag = False
+    if ft_flag:
+        model.freezeTrunk()
+        optimizer = AdaBelief(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
+        freeze_flag = True
+    else:
+        optimizer = AdaBelief(model.parameters(), lr=learning_rate, eps=1e-16, betas=(0.9, 0.999))
         lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.0005, power=2.0)
 
     log_dir = None if (args.metrics_path == "") else "runs/" + args.metrics_path
@@ -83,6 +86,12 @@ def trainTrunk(args, model, trainGen, valGen, device):
             # Backward and optimize
             loss.backward()
             optimizer.step()
+
+            if ft_flag and e > 0.6 * epochs and freeze_flag:
+                model.unfreezeTrunk()
+                optimizer.add_param_group({"params": model.new_model.parameters()})
+                freeze_flag = False
+
             if not ft_flag:
                 lr_schedule.step()
 
@@ -107,7 +116,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
         # save model
         if mIOUsum > maxIOU:
             maxIOU = mIOUsum
-            if e > -0.4 * epochs and args.save_model_path != "":
+            if (e > 0.4 * epochs or args.ft_flag) and args.save_model_path != "":
                 torch.save(model.state_dict(), args.save_model_path)
 
     writer.flush()
@@ -135,7 +144,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
 
 def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
 
-    trunkModel.eval()
+    # trunkModel.eval()
     trunkModel.to(device)
     attModel.to(device)
 
@@ -185,7 +194,7 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
         # save model
         if mIOUsum > maxIOU:
             maxIOU = mIOUsum
-            if e > 0.4 * epochs and args.save_model_path != "":
+            if (e > 0.4 * epochs or args.ft_flag) and args.save_model_path != "":
                 torch.save(attModel.state_dict(), args.save_model_path)
 
     # display image

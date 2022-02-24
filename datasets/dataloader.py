@@ -1,7 +1,6 @@
 from cProfile import label
 import math
 from random import random
-from sklearn import datasets
 from sympy import arg
 import torch
 import torchvision
