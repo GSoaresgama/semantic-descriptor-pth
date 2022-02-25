@@ -133,7 +133,7 @@ def main():
     val_generator = torch.utils.data.DataLoader(valDataset, **val_params)
 
     # Network architecture
-    model = models.wideResnet50()
+    model = models.wideResNet50()
 
     # Restore state dictionary
     if args.load_model_path != "":
@@ -159,7 +159,7 @@ def main():
     writer = SummaryWriter(log_dir=log_dir)
 
     if args.mode == "train_att":
-        attModel = att.attModel((512, 1024))
+        attModel = att.attModel((512, 1024))  # shape: resolution of imageH
 
         if args.load_att_path != "":
             attModel.load_state_dict(torch.load(args.load_att_path))
@@ -170,13 +170,13 @@ def main():
     model.to(device)
 
     for e in tqdm(range(epochs)):
-        # model.train()
+        model.train()
         for l_image, l_label in tqdm(training_generator, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
             image, labels = l_image.to(device), l_label.to(device)
 
             optimizer.zero_grad()
-            trunk, out = model(image)
-            loss = my_loss(out, labels)
+            trunk_features, seg_pred = model(image)
+            loss = my_loss(seg_pred, labels)
 
             # loss = criterion(out, labels)
 
@@ -187,35 +187,39 @@ def main():
             # break
 
         # -----------validation------------
-        # model.eval()
-        mIOUsum = 0
+        model.eval()
+        mIoU_sum = 0
         for l_image, l_label in tqdm(val_generator, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
             image, labels = l_image.to(device), l_label.to(device)
-            trunk, out = model(image)
+
+            trunk_features, seg_pred = model(image)
             # print(out.shape)
             # print(out.cpu().detach().numpy().shape)
-            mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
-            mIOUsum += mIOU
+            mIoU = iou_coef(seg_pred.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
+            mIoU_sum += mIoU
             # break
 
-        mIOUsum = float(mIOUsum / len(val_generator))
+        mIoU_sum = float(mIoU_sum / len(val_generator))
         print("\n\n")
-        print(mIOUsum)
+        print("mIoU_sum:", mIoU_sum)
         print("\n\n")
-        writer.add_scalar('Loss/train', loss, e)
-        writer.add_scalar('Accuracy/val', mIOUsum, e)
 
-        # save model
-        if mIOUsum > maxIOU:
-            maxIOU = mIOUsum
+        writer.add_scalar('Loss/train', loss, e)
+        writer.add_scalar('Accuracy/val', mIoU_sum, e)
+
+        # Save model
+        if mIoU_sum > maxIoU:
+            maxIoU = mIoU_sum
             if e > 0.4 * epochs and args.save_model_path != "":
                 torch.save(model.state_dict(), args.save_model_path)
 
     writer.flush()
     writer.close()
 
-    print("Max mIOU: ", maxIOU)
+    print("Max mIoU: ", maxIoU)
 
+    # -----------Final Evaluation------------
+    model.eval()
     for l_image, l_label in val_generator:
         image, labels = l_image.to(device), l_label.to(device)
         imgList = [{'title': 'Original', 'img': l_image[0].permute(1, 2, 0)}]
@@ -223,8 +227,8 @@ def main():
         # print(l_label.shape)
 
         # print(out.shape)
-        trunk, out = model(image)
-        c_pred = out.cpu().detach().numpy()[0]  # .transpose((1, 2, 0))
+        trunk_features, seg_pred = model(image)
+        c_pred = seg_pred.cpu().detach().numpy()[0]  # .transpose((1, 2, 0))
         # print(c_pred.shape)
 
         c_pred = trainDataset.makeColorPred(c_pred)

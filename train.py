@@ -39,19 +39,24 @@ def displayImage(imgList, filename = "test.png"):
 
 def iou_coef(pred, labels):
     smooth = 0.01
+
     intersection = np.sum(np.abs(labels[0:18]*pred[0:18]))
-    #print("intersection: ", intersection)
     # intersection = np.sum(np.abs(labels*pred))
     union = np.sum(labels[0:18]) + np.sum(pred[0:18]) - intersection
+
+    #print("intersection: ", intersection)
     #print("union: ", union)
+
     iou = np.mean((intersection+smooth)/(union+smooth))
+
     return iou
 
 def ct_loss(out, target):
     #print("out shape:", out.shape)
     #print("target shape:", target.shape)
-    loss = (-(out+1e-5).log() * target)[:,0:18].sum(dim=1).mean()
-    return loss 
+    loss = (-(out+1e-5).log() * target)[:, 0:18].sum(dim=1).mean()
+
+    return loss
 
 
 def trainTrunk(args, model, trainDataset, valDataset):
@@ -59,21 +64,21 @@ def trainTrunk(args, model, trainDataset, valDataset):
 
 
 def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
-    
     trunkModel.eval()
     trunkModel.to(device)
     attModel.to(device)
 
-    optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9,0.999))
+    optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9, 0.999))
     #lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
 
     log_dir = None if(args.metrics_path == "") else "runs/" + args.metrics_path
     writer = SummaryWriter(log_dir=log_dir)
 
-    maxIOU = -1
+    maxIoU = -1
     epochs = args.num_epochs
     
     for e in tqdm(range(epochs)):
+        attModel.train()
         for l_imageL, l_imageH, l_label in tqdm(trainGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
 
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
@@ -94,29 +99,35 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
             #lr_schedule.step()
             # break
         #-----------validation------------
-        mIOUsum = 0
+        mIoU_sum = 0
+        attModel.eval()
         for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
+
+            # Forward step, Get predictions and trunk features
             trunk, predL = trunkModel(imageL)
             _, predH = trunkModel(imageH)
 
             attMask, out = attModel(trunk, predL, predH)
+
             #print(out.shape)
             #print(out.cpu().detach().numpy().shape)
-            mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
-            mIOUsum += mIOU
+
+            # Calculate mIoU
+            mIoU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
+            mIoU_sum += mIoU
             # break
 
-        mIOUsum = float(mIOUsum/len(valGen))
+        mIoU_sum = float(mIoU_sum/len(valGen))
         print("\n\n")
-        print(mIOUsum)
+        print(mIoU_sum)
         print("\n\n")
         writer.add_scalar('Loss/train', loss, e)
-        writer.add_scalar('Accuracy/val', mIOUsum, e)
+        writer.add_scalar('Accuracy/val', mIoU_sum, e)
         
         #save model
-        if mIOUsum > maxIOU:
-            maxIOU = mIOUsum
+        if mIoU_sum > maxIoU:
+            maxIoU = mIoU_sum
             if e>-0.4*epochs and args.save_model_path != "":
                 torch.save(attModel.state_dict(), args.save_model_path)
     
@@ -151,4 +162,4 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
     writer.flush()
     writer.close()
 
-    print("Max mIOU: ", maxIOU)
+    print("Max mIoU: ", maxIoU)

@@ -50,18 +50,18 @@ class Cityscapes(baseDataloader):
         label = self.convertLabel(label)
 
         # Normalize image
-
-        # TODO:
+        # TODO: Usar função self.normAndTranspImg(image)
         image = image.astype(np.float32)
         image = image / 255.0
-        image = image.transpose((2, 0, 1))  # TODO: Why? @gamma Estava dando um problema com pytorch na hora de transformar em tensor
+        image = image.transpose((2, 0, 1)) # FIXME: @gamma disse que estava dando um problema com pytorch na hora de transformar para tensor?
 
+        # Transform to tensors
         image = torch.from_numpy(image)
         label = torch.from_numpy(label)
-        label = label.long()
+        label = label.long()  # label.to(torch.int64)
 
         label = F.one_hot(label, num_classes=20)
-        label = label.permute((2, 0, 1))
+        label = label.permute((2, 0, 1))  # TODO: Porque o label possui três canais, não deveria ser 1?
         # print("label one hot: ", label.shape)
         # label = label.to(torch.float32)
         # label[19,:,:] = 0
