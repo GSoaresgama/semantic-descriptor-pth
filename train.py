@@ -75,6 +75,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
     epochs = args.num_epochs
 
     for e in tqdm(range(epochs)):
+        model.train()
         for l_image, l_label in tqdm(trainGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
 
             image, labels = l_image.to(device), l_label.to(device)
@@ -99,6 +100,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
 
         # -----------validation------------
         mIOUsum = 0
+        model.eval()
         for l_image, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
             image, labels = l_image.to(device), l_label.to(device)
             trunk, out = model(image)
@@ -125,6 +127,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
     print("Max mIOU: ", maxIOU)
 
     # display image
+    model.eval()
     for l_image, l_label in valGen:
         image, labels = l_image.to(device), l_label.to(device)
         imgList = []
@@ -144,12 +147,12 @@ def trainTrunk(args, model, trainGen, valGen, device):
 
 def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
 
-    # trunkModel.eval()
+    trunkModel.eval()
     trunkModel.to(device)
     attModel.to(device)
 
-    optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9, 0.999))
-    # lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
+    optimizer = AdaBelief(attModel.parameters(), lr=0.01, eps=1e-16, betas=(0.9, 0.999), weight_decay=1e-4)
+    lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.0005, power=2.0)
 
     log_dir = None if (args.metrics_path == "") else "runs/" + args.metrics_path
     writer = SummaryWriter(log_dir=log_dir)
@@ -158,6 +161,7 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
     epochs = args.num_epochs
 
     for e in tqdm(range(epochs)):
+        attModel.train()
         for l_imageL, l_imageH, l_label in tqdm(trainGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
 
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
@@ -173,19 +177,20 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
             # Backward and optimize
             loss.backward()
             optimizer.step()
-            # lr_schedule.step()
-            # break
+            lr_schedule.step()
+
         # -----------validation------------
         mIOUsum = 0
+        attModel.eval()
+
         for l_imageL, l_imageH, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
             trunk, predL = trunkModel(imageL)
             _, predH = trunkModel(imageH)
 
-            attMask, out = attModel(trunk, predL, predH)
+            attMask, out = attModel(trunk, predL.detach(), predH.detach())
             mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
             mIOUsum += mIOU
-            # break
 
         mIOUsum = float(mIOUsum / len(valGen))
         writer.add_scalar("Loss/train", loss, e)
@@ -198,6 +203,7 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
                 torch.save(attModel.state_dict(), args.save_model_path)
 
     # display image
+    attModel.eval()
     for l_imageL, l_imageH, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
         imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
 

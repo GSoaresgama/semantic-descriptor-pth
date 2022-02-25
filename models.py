@@ -13,13 +13,8 @@ class wideResnet50(nn.Module):
         wr50v2 = torch.hub.load("pytorch/vision:v0.10.0", "wide_resnet50_2", pretrained=True)
         for param in wr50v2.parameters():
             param.requires_grad = True
-        # print(wr50v2)
-        # here we get all the modules(layers) before the fc layer at the end
-        # note that currently at pytorch 1.0 the named_children() is not supported
-        # and using that instead of children() will fail with an error
+
         self.new_model = nn.Sequential(*list(wr50v2.children())[:-2])
-        # print(self.new_model)
-        # self.features = nn.ModuleList(wr50v2.children())[:-2]
         # in_features = wr50v2.fc.in_features
         self.upconvs = nn.Sequential(
             nn.ConvTranspose2d(2048, 1024, kernel_size=(3, 3), stride=(2, 2), padding=1, output_padding=1, bias=False),

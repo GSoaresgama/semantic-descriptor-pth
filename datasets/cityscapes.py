@@ -42,9 +42,7 @@ class cityscapes(baseDataloader):
         label = self.convertLabel(label)
 
         # normalizer image
-        image = image.astype(np.float32)
-        image = image / 255.0
-        image = image.transpose((2, 0, 1))
+        image = self.normAndTranspImg(image)
 
         image = torch.from_numpy(image)
         label = torch.from_numpy(label)
