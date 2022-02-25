@@ -17,7 +17,10 @@ class attModel(nn.Module):
 
         # TODO: Porque você pulou de 2048 para 512? Na trunk, você saiu de 2048 para 1024.
         self.attHead = nn.Sequential(
-            nn.ConvTranspose2d(2048, 512, kernel_size=(3, 3), stride=(2, 2), padding=1, output_padding=1, bias=False),
+            nn.ConvTranspose2d(2048, 1024, kernel_size=(3, 3), stride=(2, 2), padding=1, output_padding=1, bias=False),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(),
+            nn.ConvTranspose2d(1024, 512, kernel_size=(3, 3), stride=(2, 2), padding=1, output_padding=1, bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.ConvTranspose2d(512, 256, kernel_size=(3, 3), stride=(2, 2), padding=1, output_padding=1, bias=False),
@@ -50,4 +53,4 @@ class attModel(nn.Module):
 
         output = torch.add(resize(attL), attH)
 
-        return attMask, output
+        return attMask.detach(), output
