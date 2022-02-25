@@ -8,7 +8,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-import torch 
+import torch
 import torchvision
 import torch.nn as nn
 import numpy as np
@@ -23,7 +23,8 @@ from datasets.cityscapes import Cityscapes
 
 from torch.utils.tensorboard import SummaryWriter
 
-def displayImage(imgList, filename = "test.png"):
+
+def displayImage(imgList, filename="test.png"):
     fig = plt.figure(figsize=(15, 15))
 
     nColuns = 3
@@ -36,6 +37,7 @@ def displayImage(imgList, filename = "test.png"):
 
     # plt.show()
     plt.savefig(filename)
+
 
 def iou_coef(pred, labels):
     smooth = 0.01
@@ -51,6 +53,7 @@ def iou_coef(pred, labels):
 
     return iou
 
+
 def ct_loss(out, target):
     #print("out shape:", out.shape)
     #print("target shape:", target.shape)
@@ -62,6 +65,8 @@ def ct_loss(out, target):
 def trainTrunk(args, model, trainDataset, valDataset):
     pass
 
+    ft_flag = args.ft_flag
+    learning_rate = args.learning_rate
 
 def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
     trunkModel.eval()
@@ -71,12 +76,12 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
     optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9, 0.999))
     #lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
 
-    log_dir = None if(args.metrics_path == "") else "runs/" + args.metrics_path
+    log_dir = None if (args.metrics_path == "") else "runs/" + args.metrics_path
     writer = SummaryWriter(log_dir=log_dir)
 
     maxIoU = -1
     epochs = args.num_epochs
-    
+
     for e in tqdm(range(epochs)):
         attModel.train()
         for l_imageL, l_imageH, l_label in tqdm(trainGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
@@ -146,19 +151,19 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
         c_pred = out.cpu().detach().numpy()[0]
         # print(c_pred.shape)
 
-        c_predL = lb.cityscapes_pallete[np.argmax(c_predL, axis=0), :]  
-        c_predH = lb.cityscapes_pallete[np.argmax(c_predH, axis=0), :]  
-        c_pred = lb.cityscapes_pallete[np.argmax(c_pred, axis=0), :]  
-        c_label = lb.cityscapes_pallete[np.argmax(l_label[0], axis=0), :]  
-        
-        imgList.append({'title' : 'Color predL', 'img' : c_predL})
-        imgList.append({'title' : 'Color predH', 'img' : c_predH})
-        imgList.append({'title' : 'attMask', 'img' : attMask.cpu().detach()[0].permute(1, 2, 0).numpy()})
-        imgList.append({'title' : 'Color pred', 'img' : c_pred})
-        imgList.append({'title' : 'Color label', 'img' : c_label})
+        c_predL = lb.cityscapes_pallete[np.argmax(c_predL, axis=0), :]
+        c_predH = lb.cityscapes_pallete[np.argmax(c_predH, axis=0), :]
+        c_pred = lb.cityscapes_pallete[np.argmax(c_pred, axis=0), :]
+        c_label = lb.cityscapes_pallete[np.argmax(l_label[0], axis=0), :]
+
+        imgList.append({"title": "Color predL", "img": c_predL})
+        imgList.append({"title": "Color predH", "img": c_predH})
+        imgList.append({"title": "attMask", "img": attMask.cpu().detach()[0].permute(1, 2, 0).numpy()})
+        imgList.append({"title": "Color pred", "img": c_pred})
+        imgList.append({"title": "Color label", "img": c_label})
         displayImage(imgList, filename="att.png")
         break
-    
+
     writer.flush()
     writer.close()
 
