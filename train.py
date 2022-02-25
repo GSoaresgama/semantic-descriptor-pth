@@ -28,12 +28,12 @@ def displayImage(imgList, filename="test.png"):
     fig = plt.figure(figsize=(15, 15))
 
     nColuns = 3
-    nLines =  int(np.ceil(len(imgList)/3.0))
+    nLines = int(np.ceil(len(imgList) / 3.0))
 
     for index, img in enumerate(imgList):
         fig.add_subplot(nLines, nColuns, index + 1)
-        plt.imshow(img['img'], interpolation='bilinear')
-        plt.title(img['title'])
+        plt.imshow(img["img"], interpolation="bilinear")
+        plt.title(img["title"])
 
     # plt.show()
     plt.savefig(filename)
@@ -144,8 +144,8 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
         _, predH = trunkModel(imageH)
 
         attMask, out = attModel(trunk, predL, predH)
-        imgList = [{'title': 'Original', 'img': imageL.cpu()[0].permute(1, 2, 0)},
-                   {'title': 'Original', 'img': imageL.cpu()[0].permute(1, 2, 0)}]
+        imgList = []
+        imgList.append({'title' : 'Original', 'img' : imageL.cpu()[0].permute(1, 2, 0)})
         c_predL = predL.cpu().detach().numpy()[0]
         c_predH = predH.cpu().detach().numpy()[0]
         c_pred = out.cpu().detach().numpy()[0]
