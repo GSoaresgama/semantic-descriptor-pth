@@ -15,6 +15,7 @@ class attModel(nn.Module):
         # self.features = nn.ModuleList(self.wr50v2.children())[:-1]
         # print(trunk)
 
+        # TODO: Porque você pulou de 2048 para 512? Na trunk, você saiu de 2048 para 1024.
         self.attHead = nn.Sequential(
             nn.ConvTranspose2d(2048, 512, kernel_size=(3, 3), stride=(2, 2), padding=1, output_padding=1, bias=False),
             nn.BatchNorm2d(512),
@@ -34,15 +35,19 @@ class attModel(nn.Module):
             nn.Conv2d(32, 1, kernel_size=(1, 1), stride=(1, 1)),
             nn.Sigmoid()
         )
+
         for m in self.attHead:
             if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
                 torch.nn.init.xavier_normal_(m.weight, gain=1)
 
     def forward(self, input_trunk, predL, predH):
         resize = torchvision.transforms.Resize(self.shape)
+
         attMask = self.attHead(input_trunk)
+
         attL = torch.mul(predL, attMask)
         attH = torch.mul((1 - resize(attMask)), predH)
+
         output = torch.add(resize(attL), attH)
 
         return attMask, output
