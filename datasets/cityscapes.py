@@ -23,11 +23,8 @@ import label as lb
 
 
 class Cityscapes(baseDataloader):
+    # TODO: Leitura e dataAugmentation está todo implementado em OpenCV, não está fazendo o uso de transforms
     def __getitem__(self, index):
-        # TODO: Leitura e dataAugmentation está todo implementado em OpenCV, não está fazendo o uso de transforms
-        # 1. Read one data from file (e.g. using numpy.fromfile, PIL.Image.open).
-        # 2. Preprocess the data (e.g. torchvision.Transform).
-        # 3. Return a data pair (e.g. image and label).
         imgPath = self.images[index]
         labelPath = self.labels[index]
         # print(imgPath)
@@ -51,9 +48,7 @@ class Cityscapes(baseDataloader):
 
         # Normalize image
         # TODO: Usar função self.normAndTranspImg(image)
-        image = image.astype(np.float32)
-        image = image / 255.0
-        image = image.transpose((2, 0, 1)) # FIXME: @gamma disse que estava dando um problema com pytorch na hora de transformar para tensor?
+        image = self.normAndTranspImg(image)  # FIXME: @gamma disse que estava dando um problema com pytorch na hora de transformar para tensor?
 
         # Transform to tensors
         image = torch.from_numpy(image)
@@ -70,10 +65,7 @@ class Cityscapes(baseDataloader):
 
 class attCityscapes(baseDataloader):
     def __getitem__(self, index):
-        # TODO
-        # 1. Read one data from file (e.g. using numpy.fromfile, PIL.Image.open).
-        # 2. Preprocess the data (e.g. torchvision.Transform).
-        # 3. Return a data pair (e.g. image and label).
+
         imgPath = self.images[index]
         labelPath = self.labels[index]
         # print(imgPath)
@@ -84,12 +76,12 @@ class attCityscapes(baseDataloader):
         self.shape = image.shape
         image = image[:, :, ::-1]
 
-        if random() < 0.5:
+        if not self.eval and random() < 0.5:
             image = self.color(image)
 
         if image.shape[0] != self.img_height or image.shape[1] != self.img_width:
-            imageH = cv2.resize(image, (self.img_width, self.img_height))
-            label = cv2.resize(label, (self.img_width, self.img_height))
+            imageH = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
+            label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         else:
             imageH = image.copy()
 
@@ -97,7 +89,7 @@ class attCityscapes(baseDataloader):
 
         label = self.convertLabel(label)
 
-        # normalize images
+        # Normalize images
         imageL = self.normAndTranspImg(imageL)
         imageH = self.normAndTranspImg(imageH)
 
