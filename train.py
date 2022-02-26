@@ -41,15 +41,15 @@ def displayImage(imgList, filename="test.png"):
 
 def iou_coef(pred, labels):
     smooth = 0.01
-    intersection = np.sum(np.abs(labels[0:18] * pred[0:18]))
-    union = np.sum(labels[0:18]) + np.sum(pred[0:18]) - intersection
+    intersection = np.sum(np.abs(labels[0:19] * pred))
+    union = np.sum(labels[0:19]) + np.sum(pred) - intersection
     iou = np.mean((intersection + smooth) / (union + smooth))
 
     return iou
 
 
 def ct_loss(out, target):
-    return (-(out + 1e-5).log() * target)[:, 0:18].sum(dim=1).mean()
+    return (-(out + 1e-5).log() * target[:, 0:19]).sum(dim=1).mean()
 
 
 def trainTrunk(args, model, trainGen, valGen, device):
@@ -65,7 +65,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
         optimizer = AdaBelief(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
         freeze_flag = True
     else:
-        optimizer = AdaBelief(model.parameters(), lr=learning_rate, eps=1e-16, betas=(0.9, 0.999))
+        optimizer = AdaBelief(model.parameters(), lr=learning_rate, eps=1e-16, betas=(0.9, 0.999), weight_decay=1e-4)
         lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.0005, power=2.0)
 
     log_dir = None if (args.metrics_path == "") else "runs/" + args.metrics_path
@@ -79,6 +79,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
         for l_image, l_label in tqdm(trainGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
 
             image, labels = l_image.to(device), l_label.to(device)
+            print(image.shape)
 
             optimizer.zero_grad()
             trunk, out = model(image)
@@ -96,7 +97,7 @@ def trainTrunk(args, model, trainGen, valGen, device):
             if not ft_flag:
                 lr_schedule.step()
 
-            # break
+            break
 
         # -----------validation------------
         mIOUsum = 0
