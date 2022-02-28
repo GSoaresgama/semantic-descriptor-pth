@@ -1,5 +1,6 @@
 # Libraries
 from cProfile import label
+from nis import match
 import os
 import cv2
 import sys
@@ -16,16 +17,14 @@ import torchvision.transforms as transforms
 from adabelief_pytorch import AdaBelief
 from torch_poly_lr_decay import PolynomialLRDecay
 
-import attention as att
 import models
+import attention as att
 import label as lb
 import train
-from datasets.cityscapes import Cityscapes
+from datasets.cityscapes import Cityscapes, attCityscapes
 
 # Global Variables
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-
 device = torch.device("cpu")
 
 # ============== #
@@ -69,10 +68,6 @@ else:
     args = parser.parse_args()
 
 
-# =========== #
-#  Functions  #
-# =========== #
-
 # ====== #
 #  Main  #
 # ====== #
@@ -89,8 +84,8 @@ def main():
         model.load_state_dict(torch.load(args.load_model_path))
 
     if args.mode == "train":
-        trainDataset = cityscapes(args)
-        valDataset = cityscapes(args, eval=True)
+        trainDataset = Cityscapes(args)
+        valDataset = Cityscapes(args, eval=True)
         training_generator = torch.utils.data.DataLoader(trainDataset, **params)
         val_generator = torch.utils.data.DataLoader(valDataset, **val_params)
 
@@ -109,7 +104,8 @@ def main():
 
         if args.load_att_path != "":
             attModel.load_state_dict(torch.load(args.load_att_path))
-print(len(training_generator))
+
+        print(len(training_generator))
         print(len(val_generator))
 
         train.trainAtt(args, model, attModel, training_generator, val_generator, device)

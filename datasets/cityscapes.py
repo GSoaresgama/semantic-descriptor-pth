@@ -19,12 +19,12 @@ from torch.nn import functional as F
 from datasets.dataloader import baseDataloader
 
 import label as lb
-# import dataloader
 
 
 class Cityscapes(baseDataloader):
     # TODO: Leitura e dataAugmentation está todo implementado em OpenCV, não está fazendo o uso de transforms
     def __getitem__(self, index):
+
         imgPath = self.images[index]
         labelPath = self.labels[index]
         # print(imgPath)
@@ -48,7 +48,7 @@ class Cityscapes(baseDataloader):
 
         # Normalize image
         # TODO: Usar função self.normAndTranspImg(image)
-        image = self.normAndTranspImg(image)  # FIXME: @gamma disse que estava dando um problema com pytorch na hora de transformar para tensor?
+        image = self.normAndTranspImg(image)  # FIXME: @gama disse que estava dando um problema com pytorch na hora de transformar para tensor?
 
         # Transform to tensors
         image = torch.from_numpy(image)

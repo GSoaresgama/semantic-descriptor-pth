@@ -39,7 +39,7 @@ class wideResNet50(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Conv2d(64, 20, kernel_size=(1, 1), stride=(1, 1)),  # TODO: Why 20?
-            nn.Softmax(dim=1)
+            nn.Softmax(dim=1),
         )
 
         for m in self.upconvs:
