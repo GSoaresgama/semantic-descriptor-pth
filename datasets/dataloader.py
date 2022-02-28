@@ -23,7 +23,7 @@ import label as lb
 class baseDataloader(torch.utils.data.Dataset):
     def __init__(self, args, eval=False):
         # TODO
-        # 1. Initialize file paths or a list of file names. 
+        # 1. Initialize file paths or a list of file names.
         self.imagePath = args.dataset_images_path
         self.labelPath = args.dataset_labels_path
         self.pathExtraImages = args.dataset_extra_images_path
@@ -35,24 +35,36 @@ class baseDataloader(torch.utils.data.Dataset):
 
         self.eval = eval
 
-        addPathImg = '*/*_leftImg8bit.png'
-        addPathLabel = '*/*_labelIds.png'
+        if self.dataset == "cityscapes":
+            addPathImg = "*/*_leftImg8bit.png"
+            addPathLabel = "*/*_labelIds.png"
+        elif self.dataset == "kitti":
+            addPathImg = "image_2/*.png"
+            addPathLabel = "semantic/*.png"
 
         if self.eval:  # validation
-            self.images = sorted(glob(self.imagePath + '/val*/' + addPathImg))
-            self.labels = sorted(glob(self.labelPath + '/val*/' + addPathLabel))
+            self.images = sorted(glob(self.imagePath + "/val*/" + addPathImg))
+            self.labels = sorted(glob(self.labelPath + "/val*/" + addPathLabel))
+            if self.dataset == "kitti":
+                self.images = sorted(glob(self.imagePath + "/train*/" + addPathImg))
+                self.labels = sorted(glob(self.labelPath + "/train*/" + addPathLabel))
+
+                self.images = self.images[int(0.95 * len(self.images)) :]
+                self.labels = self.labels[int(0.95 * len(self.labels)) :]
+
         else:  # train
-            self.images = sorted(glob(self.imagePath + '/train*/' + addPathImg))
-            self.labels = sorted(glob(self.labelPath + '/train*/' + addPathLabel))
+            self.images = sorted(glob(self.imagePath + "/train*/" + addPathImg))
+            self.labels = sorted(glob(self.labelPath + "/train*/" + addPathLabel))
 
             if self.dataset == "cityscapes" and self.pathExtraImages != "" and self.pathAutoLabels != "":
-                self.images += glob(self.pathExtraImages + '/train_extra/*/*.png')
+                self.images += glob(self.pathExtraImages + "/train_extra/*/*.png")
                 self.images = sorted(self.images)
-                self.labels += glob(self.pathAutoLabels + '/*/*.png')
+                self.labels += glob(self.pathAutoLabels + "/*/*.png")
                 self.labels = sorted(self.labels)
 
-        # self.labels = self.labels[:4000]
-        # self.images = self.images[:4000]
+            elif self.dataset == "kitti":
+                self.images = self.images[0 : int(0.95 * len(self.images))]
+                self.labels = self.labels[0 : int(0.95 * len(self.labels))]
 
         ignore_label = 19
 
@@ -67,7 +79,8 @@ class baseDataloader(torch.utils.data.Dataset):
                               19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11,
                               25: 12, 26: 13, 27: 14, 28: 15,
                               29: ignore_label, 30: ignore_label,
-                              31: 16, 32: 17, 33: 18}
+                              31: 16, 32: 17, 33: 18,
+        }
 
     # -------------- DATA AUG --------------- #
     def zoom(self, image, label):
@@ -81,8 +94,8 @@ class baseDataloader(torch.utils.data.Dataset):
         x = np.random.randint(int(self.img_width / 4), int(self.img_width / 2))
         y = np.random.randint(int(self.img_height / 4), int(self.img_height / 2))
 
-        image = image[y: y + self.img_height, x: x + self.img_width]
-        label = label[y: y + self.img_height, x: x + self.img_width]
+        image = image[y : y + self.img_height, x : x + self.img_width]
+        label = label[y : y + self.img_height, x : x + self.img_width]
 
         return image, label
 
@@ -110,8 +123,8 @@ class baseDataloader(torch.utils.data.Dataset):
         crop_h = int((nh - h) / 2)
         crop_w = int((nw - w) / 2)
 
-        r_image = r_image[crop_h:h + crop_h, crop_w:w + crop_w]
-        r_label = r_label[crop_h:h + crop_h, crop_w:w + crop_w]
+        r_image = r_image[crop_h : h + crop_h, crop_w : w + crop_w]
+        r_label = r_label[crop_h : h + crop_h, crop_w : w + crop_w]
 
         return r_image, r_label
 
@@ -128,7 +141,7 @@ class baseDataloader(torch.utils.data.Dataset):
         return image
 
     def augmentData(self, image, label):
-        if random() < 0.5:
+        if random() < 0.5 and self.dataset != "kitti":
             # image, label = self.zoom(image, label)
             new_size = (int(self.img_width / 2), int(self.img_height / 2))
             image = cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
@@ -148,7 +161,6 @@ class baseDataloader(torch.utils.data.Dataset):
 
     def convertLabel(self, label):
         temp = label.copy()
-        # ignore_label = 19
         for id, trainID in self.label_mapping.items():
             label[temp == id] = trainID
 
@@ -159,6 +171,7 @@ class baseDataloader(torch.utils.data.Dataset):
         image = image.astype(np.float32)
         image = image / 255.0
         image = image.transpose((2, 0, 1))
+
         return image
 
     @staticmethod
