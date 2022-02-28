@@ -32,7 +32,6 @@ class baseDataloader(torch.utils.data.Dataset):
         self.img_height = args.img_height
         self.batch_size = args.batch_size
         self.dataset = args.dataset
-
         self.eval = eval
 
         if self.dataset == "cityscapes":
@@ -68,18 +67,42 @@ class baseDataloader(torch.utils.data.Dataset):
 
         ignore_label = 19
 
-        self.label_mapping = {-1: ignore_label, 0: ignore_label,
-                              1: ignore_label, 2: ignore_label,
-                              3: ignore_label, 4: ignore_label,
-                              5: ignore_label, 6: ignore_label,
-                              7: 0, 8: 1, 9: ignore_label,
-                              10: ignore_label, 11: 2, 12: 3,
-                              13: 4, 14: ignore_label, 15: ignore_label,
-                              16: ignore_label, 17: 5, 18: ignore_label,
-                              19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11,
-                              25: 12, 26: 13, 27: 14, 28: 15,
-                              29: ignore_label, 30: ignore_label,
-                              31: 16, 32: 17, 33: 18,
+        self.label_mapping = {
+            -1: ignore_label,
+            0: ignore_label,
+            1: ignore_label,
+            2: ignore_label,
+            3: ignore_label,
+            4: ignore_label,
+            5: ignore_label,
+            6: ignore_label,
+            7: 0,
+            8: 1,
+            9: ignore_label,
+            10: ignore_label,
+            11: 2,
+            12: 3,
+            13: 4,
+            14: ignore_label,
+            15: ignore_label,
+            16: ignore_label,
+            17: 5,
+            18: ignore_label,
+            19: 6,
+            20: 7,
+            21: 8,
+            22: 9,
+            23: 10,
+            24: 11,
+            25: 12,
+            26: 13,
+            27: 14,
+            28: 15,
+            29: ignore_label,
+            30: ignore_label,
+            31: 16,
+            32: 17,
+            33: 18,
         }
 
     # -------------- DATA AUG --------------- #
@@ -175,7 +198,7 @@ class baseDataloader(torch.utils.data.Dataset):
         return image
 
     @staticmethod
-    def makeColorPred():
+    def makeColorPred(label):
         clabel = lb.cityscapes_pallete[np.argmax(label, axis=0), :]
         # clabel = clabel[:,:,0:3]
 

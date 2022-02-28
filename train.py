@@ -42,39 +42,119 @@ def displayImage(imgList, filename="test.png"):
 def iou_coef(pred, labels):
     smooth = 0.01
 
-    intersection = np.sum(np.abs(labels[0:18]*pred[0:18]))
-    # intersection = np.sum(np.abs(labels*pred))
+    intersection = np.sum(np.abs(labels[0:18] * pred[0:18]))
     union = np.sum(labels[0:18]) + np.sum(pred[0:18]) - intersection
 
-    #print("intersection: ", intersection)
-    #print("union: ", union)
-
-    iou = np.mean((intersection+smooth)/(union+smooth))
+    iou = np.mean((intersection + smooth) / (union + smooth))
 
     return iou
 
 
 def ct_loss(out, target):
-    #print("out shape:", out.shape)
-    #print("target shape:", target.shape)
-    loss = (-(out+1e-5).log() * target)[:, 0:18].sum(dim=1).mean()
-
-    return loss
+    return (-(out + 1e-5).log() * target)[:, 0:18].sum(dim=1).mean()
 
 
-def trainTrunk(args, model, trainDataset, valDataset):
-    pass
+def trainTrunk(args, model, trainGen, valGen, device):
 
     ft_flag = args.ft_flag
     learning_rate = args.learning_rate
 
+    model.to(device)
+
+    freeze_flag = False
+    if ft_flag:
+        model.freezeTrunk()
+        optimizer = AdaBelief(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
+        freeze_flag = True
+    else:
+        optimizer = AdaBelief(model.parameters(), lr=learning_rate, eps=1e-16, betas=(0.9, 0.999))
+        lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.0005, power=2.0)
+
+    log_dir = None if (args.metrics_path == "") else "runs/" + args.metrics_path
+    writer = SummaryWriter(log_dir=log_dir)
+
+    maxIOU = -1
+    epochs = args.num_epochs
+
+    for e in tqdm(range(epochs)):
+        model.train()
+        for l_image, l_label in tqdm(trainGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
+
+            image, labels = l_image.to(device), l_label.to(device)
+
+            optimizer.zero_grad()
+            trunk, out = model(image)
+            loss = ct_loss(out, labels)
+
+            # Backward and optimize
+            loss.backward()
+            optimizer.step()
+
+            if ft_flag and e > 0.6 * epochs and freeze_flag:
+                model.unfreezeTrunk()
+                optimizer.add_param_group({"params": model.new_model.parameters()})
+                freeze_flag = False
+
+            if not ft_flag:
+                lr_schedule.step()
+
+            # break
+
+        # -----------validation------------
+        mIOUsum = 0
+        model.eval()
+        for l_image, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
+            image, labels = l_image.to(device), l_label.to(device)
+            trunk, out = model(image)
+            mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
+            mIOUsum += mIOU
+            # break
+
+        mIOUsum = float(mIOUsum / len(valGen))
+        print("\n\n")
+        print(mIOUsum)
+        print("\n\n")
+        writer.add_scalar("Loss/train", loss, e)
+        writer.add_scalar("Accuracy/val", mIOUsum, e)
+
+        # save model
+        if mIOUsum > maxIOU:
+            maxIOU = mIOUsum
+            if (e > 0.4 * epochs or args.ft_flag) and args.save_model_path != "":
+                torch.save(model.state_dict(), args.save_model_path)
+
+    writer.flush()
+    writer.close()
+
+    print("Max mIOU: ", maxIOU)
+
+    # display image
+    model.eval()
+    for l_image, l_label in valGen:
+        image, labels = l_image.to(device), l_label.to(device)
+        imgList = []
+        imgList.append({"title": "Original", "img": l_image[0].permute(1, 2, 0)})
+
+        trunk, out = model(image)
+        c_pred = out.cpu().detach().numpy()[0]  # .transpose((1, 2, 0))
+
+        c_pred = lb.cityscapes_pallete[np.argmax(c_pred, axis=0), :]
+        c_label = lb.cityscapes_pallete[np.argmax(l_label[0], axis=0), :]
+
+        imgList.append({"title": "Color pred", "img": c_pred})
+        imgList.append({"title": "Color label", "img": c_label})
+        displayImage(imgList)
+        break
+
+
 def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
+
     trunkModel.eval()
     trunkModel.to(device)
     attModel.to(device)
 
-    optimizer = AdaBelief(attModel.parameters(), lr=0.00001, eps=1e-16, betas=(0.9, 0.999))
-    #lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.00001, power=2.0)
+    optimizer = AdaBelief(attModel.parameters(), lr=0.01, eps=1e-16, betas=(0.9, 0.999), weight_decay=1e-4)
+    lr_schedule = PolynomialLRDecay(optimizer, max_decay_steps=600000, end_learning_rate=0.0005, power=2.0)
 
     log_dir = None if (args.metrics_path == "") else "runs/" + args.metrics_path
     writer = SummaryWriter(log_dir=log_dir)
@@ -84,7 +164,7 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
 
     for e in tqdm(range(epochs)):
         attModel.train()
-        for l_imageL, l_imageH, l_label in tqdm(trainGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
+        for l_imageL, l_imageH, l_label in tqdm(trainGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
 
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
 
@@ -95,61 +175,53 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
             attMask, out = attModel(trunk, predL, predH)
 
             loss = ct_loss(out, labels)
-            
-            #loss = criterion(out, labels)
 
             # Backward and optimize
             loss.backward()
             optimizer.step()
-            #lr_schedule.step()
-            # break
-        #-----------validation------------
+            lr_schedule.step()
+
+        # ----------- validation ------------ #
         mIoU_sum = 0
         attModel.eval()
-        for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
+
+        for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
 
             # Forward step, Get predictions and trunk features
             trunk, predL = trunkModel(imageL)
             _, predH = trunkModel(imageH)
 
-            attMask, out = attModel(trunk, predL, predH)
-
-            #print(out.shape)
-            #print(out.cpu().detach().numpy().shape)
+            attMask, out = attModel(trunk, predL.detach(), predH.detach())
 
             # Calculate mIoU
             mIoU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
             mIoU_sum += mIoU
-            # break
 
         mIoU_sum = float(mIoU_sum/len(valGen))
-        print("\n\n")
-        print(mIoU_sum)
-        print("\n\n")
         writer.add_scalar('Loss/train', loss, e)
         writer.add_scalar('Accuracy/val', mIoU_sum, e)
         
-        #save model
+        # save model
         if mIoU_sum > maxIoU:
             maxIoU = mIoU_sum
-            if e>-0.4*epochs and args.save_model_path != "":
+            if (e > 0.4 * epochs or args.ft_flag) and args.save_model_path != "":
                 torch.save(attModel.state_dict(), args.save_model_path)
-    
-    for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
+
+    # display image
+    attModel.eval()
+    for l_imageL, l_imageH, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
         imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
-        # print("imageL.shape",imageL.shape)
 
         trunk, predL = trunkModel(imageL)
         _, predH = trunkModel(imageH)
 
         attMask, out = attModel(trunk, predL, predH)
         imgList = []
-        imgList.append({'title' : 'Original', 'img' : imageL.cpu()[0].permute(1, 2, 0)})
+        imgList.append({"title": "Original", "img": imageL.cpu()[0].permute(1, 2, 0)})
         c_predL = predL.cpu().detach().numpy()[0]
         c_predH = predH.cpu().detach().numpy()[0]
         c_pred = out.cpu().detach().numpy()[0]
-        # print(c_pred.shape)
 
         c_predL = lb.cityscapes_pallete[np.argmax(c_predL, axis=0), :]
         c_predH = lb.cityscapes_pallete[np.argmax(c_predH, axis=0), :]

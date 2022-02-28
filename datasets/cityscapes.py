@@ -19,12 +19,12 @@ from torch.nn import functional as F
 from datasets.dataloader import baseDataloader
 
 import label as lb
-# import dataloader
 
 
 class Cityscapes(baseDataloader):
     # TODO: Leitura e dataAugmentation está todo implementado em OpenCV, não está fazendo o uso de transforms
     def __getitem__(self, index):
+
         imgPath = self.images[index]
         labelPath = self.labels[index]
         # print(imgPath)
