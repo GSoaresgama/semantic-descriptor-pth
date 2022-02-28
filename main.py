@@ -1,3 +1,4 @@
+# Libraries
 from cProfile import label
 from nis import match
 import os
@@ -20,18 +21,15 @@ import models
 import attention as att
 import label as lb
 import train
-from datasets.cityscapes import attCityscapes, cityscapes
+from datasets.cityscapes import Cityscapes, attCityscapes
 
-from torch.utils.tensorboard import SummaryWriter
-
+# Global Variables
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 device = torch.device("cpu")
 
 # ============== #
 #  Args Parsing  #
 # ============== #
-
-
 def convert_arg_line_to_args(arg_line):
     for arg in arg_line.split():
         if not arg.strip():
@@ -70,6 +68,9 @@ else:
     args = parser.parse_args()
 
 
+# ====== #
+#  Main  #
+# ====== #
 def main():
     for arg in vars(args):
         print(arg, getattr(args, arg))
@@ -83,8 +84,8 @@ def main():
         model.load_state_dict(torch.load(args.load_model_path))
 
     if args.mode == "train":
-        trainDataset = cityscapes(args)
-        valDataset = cityscapes(args, eval=True)
+        trainDataset = Cityscapes(args)
+        valDataset = Cityscapes(args, eval=True)
         training_generator = torch.utils.data.DataLoader(trainDataset, **params)
         val_generator = torch.utils.data.DataLoader(valDataset, **val_params)
 
@@ -96,7 +97,7 @@ def main():
         training_generator = torch.utils.data.DataLoader(trainDataset, **params)
         val_generator = torch.utils.data.DataLoader(valDataset, **val_params)
 
-        attModel = att.attModel((args.img_height, args.img_width))
+        attModel = att.attModel ((args.img_height, args.img_width))
 
         if args.load_att_path != "":
             attModel.load_state_dict(torch.load(args.load_att_path))

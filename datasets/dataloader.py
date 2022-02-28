@@ -105,8 +105,8 @@ class baseDataloader(torch.utils.data.Dataset):
             33: 18,
         }
 
-    # ---------------DATA AUG----------------
-    def zoon(self, image, label):
+    # -------------- DATA AUG --------------- #
+    def zoom(self, image, label):
         if image.shape[0] != 2 * self.img_height or image.shape[1] != 2 * self.img_width:
             image = cv2.resize(image, (2 * self.img_width, 2 * self.img_height))
             label = cv2.resize(label, (2 * self.img_height, 2 * self.img_height))
@@ -122,7 +122,8 @@ class baseDataloader(torch.utils.data.Dataset):
 
         return image, label
 
-    def rotate(self, image, label):
+    @staticmethod
+    def rotate(image, label):
         rot_angle = np.random.uniform(-0.0872665, 0.0872665)
         rsin = abs(math.sin(rot_angle))
         rcos = abs(math.cos(rot_angle))
@@ -150,9 +151,10 @@ class baseDataloader(torch.utils.data.Dataset):
 
         return r_image, r_label
 
-    def color(self, image):
+    @staticmethod
+    def color(image):
         gamma = np.random.uniform(0.9, 1.1)
-        image = image**gamma
+        image = image ** gamma
 
         brightness = np.random.uniform(0.75, 1.25)
         image = image * brightness
@@ -163,10 +165,11 @@ class baseDataloader(torch.utils.data.Dataset):
 
     def augmentData(self, image, label):
         if random() < 0.5 and self.dataset != "kitti":
-            image, label = self.zoon(image, label)
+            image, label = self.zoom(image, label)
         else:
-            image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
-            label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
+            original_size = (self.img_width, self.img_height)
+            image = cv2.resize(image, original_size, interpolation=cv2.INTER_AREA)
+            label = cv2.resize(label, original_size, interpolation=cv2.INTER_NEAREST)
 
         # if(random() < 0.5):
         #     image, label = self.rotate(image, label)
@@ -183,14 +186,16 @@ class baseDataloader(torch.utils.data.Dataset):
 
         return label
 
-    def normAndTranspImg(self, image):
+    @staticmethod
+    def normAndTranspImg(image):
         image = image.astype(np.float32)
         image = image / 255.0
         image = image.transpose((2, 0, 1))
 
         return image
 
-    def makeColorPred(self, label):
+    @staticmethod
+    def makeColorPred(label):
         clabel = lb.cityscapes_pallete[np.argmax(label, axis=0), :]
         # clabel = clabel[:,:,0:3]
 

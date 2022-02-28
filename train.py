@@ -19,7 +19,7 @@ from torch_poly_lr_decay import PolynomialLRDecay
 import models
 import attention as att
 import label as lb
-from datasets.cityscapes import cityscapes
+from datasets.cityscapes import Cityscapes
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -41,8 +41,10 @@ def displayImage(imgList, filename="test.png"):
 
 def iou_coef(pred, labels):
     smooth = 0.01
+
     intersection = np.sum(np.abs(labels[0:19] * pred))
     union = np.sum(labels[0:19]) + np.sum(pred) - intersection
+
     iou = np.mean((intersection + smooth) / (union + smooth))
 
     return iou
@@ -158,7 +160,7 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
     log_dir = None if (args.metrics_path == "") else "runs/" + args.metrics_path
     writer = SummaryWriter(log_dir=log_dir)
 
-    maxIOU = -1
+    maxIoU = -1
     epochs = args.num_epochs
 
     for e in tqdm(range(epochs)):
@@ -180,26 +182,30 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
             optimizer.step()
             lr_schedule.step()
 
-        # -----------validation------------
-        mIOUsum = 0
+        # ----------- validation ------------ #
+        mIoU_sum = 0
         attModel.eval()
 
-        for l_imageL, l_imageH, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
+        for l_imageL,l_imageH, l_label in tqdm(valGen, bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"):
             imageL, imageH, labels = l_imageL.to(device), l_imageH.to(device), l_label.to(device)
+
+            # Forward step, Get predictions and trunk features
             trunk, predL = trunkModel(imageL)
             _, predH = trunkModel(imageH)
 
             attMask, out = attModel(trunk, predL.detach(), predH.detach())
-            mIOU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
-            mIOUsum += mIOU
 
-        mIOUsum = float(mIOUsum / len(valGen))
-        writer.add_scalar("Loss/train", loss, e)
-        writer.add_scalar("Accuracy/val", mIOUsum, e)
+            # Calculate mIoU
+            mIoU = iou_coef(out.cpu().detach().numpy()[0], labels.cpu().detach().numpy()[0])
+            mIoU_sum += mIoU
 
+        mIoU_sum = float(mIoU_sum/len(valGen))
+        writer.add_scalar('Loss/train', loss, e)
+        writer.add_scalar('Accuracy/val', mIoU_sum, e)
+        
         # save model
-        if mIOUsum > maxIOU:
-            maxIOU = mIOUsum
+        if mIoU_sum > maxIoU:
+            maxIoU = mIoU_sum
             if (e > 0.4 * epochs or args.ft_flag) and args.save_model_path != "":
                 torch.save(attModel.state_dict(), args.save_model_path)
 
@@ -234,4 +240,4 @@ def trainAtt(args, trunkModel, attModel, trainGen, valGen, device):
     writer.flush()
     writer.close()
 
-    print("Max mIOU: ", maxIOU)
+    print("Max mIoU: ", maxIoU)

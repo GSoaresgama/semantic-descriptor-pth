@@ -30,9 +30,9 @@ cityscapes_pallete = np.array(
         # 15 = bus, 16 = train, 17 = motocycle
         [119, 10, 32],
         [0, 0, 0],
+        # 18 = bicycle, 19 = ignore
     ]
 )
-# 18 = bicycle, 19 = ignore
 
 cityscapes_pallete = cityscapes_pallete / 255.0
 
