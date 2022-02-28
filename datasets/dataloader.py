@@ -165,10 +165,7 @@ class baseDataloader(torch.utils.data.Dataset):
 
     def augmentData(self, image, label):
         if random() < 0.5 and self.dataset != "kitti":
-            # image, label = self.zoom(image, label)
-            new_size = (int(self.img_width / 2), int(self.img_height / 2))
-            image = cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
-            label = cv2.resize(label, new_size, interpolation=cv2.INTER_NEAREST)
+            image, label = self.zoom(image, label)
         else:
             original_size = (self.img_width, self.img_height)
             image = cv2.resize(image, original_size, interpolation=cv2.INTER_AREA)

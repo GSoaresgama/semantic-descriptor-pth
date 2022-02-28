@@ -57,9 +57,7 @@ class Cityscapes(baseDataloader):
 
         label = F.one_hot(label, num_classes=20)
         label = label.permute((2, 0, 1))  # TODO: Porque o label possui três canais, não deveria ser 1?
-        # print("label one hot: ", label.shape)
-        # label = label.to(torch.float32)
-        # label[19,:,:] = 0
+        
         return image, label
 
 
@@ -68,8 +66,7 @@ class attCityscapes(baseDataloader):
 
         imgPath = self.images[index]
         labelPath = self.labels[index]
-        # print(imgPath)
-        # print(labelPath)
+
         image = cv2.imread(imgPath, cv2.IMREAD_COLOR)
         label = cv2.imread(labelPath, cv2.IMREAD_GRAYSCALE)
 
