@@ -1,21 +1,10 @@
-from cProfile import label
 import math
-from random import random
-from sympy import arg
-import torch
-import torchvision
-import torch.nn as nn
-import numpy as np
-import torchvision.transforms.functional as fn
-
-import os
 from glob import glob
+from random import random
+
 import cv2
 import numpy as np
-from PIL import Image
-
 import torch
-from torch.nn import functional as F
 
 import label as lb
 
@@ -34,6 +23,9 @@ class baseDataloader(torch.utils.data.Dataset):
         self.dataset = args.dataset
         self.eval = eval
 
+        addPathImg = None
+        addPathLabel = None
+
         if self.dataset == "cityscapes":
             addPathImg = "*/*_leftImg8bit.png"
             addPathLabel = "*/*_labelIds.png"
@@ -48,8 +40,8 @@ class baseDataloader(torch.utils.data.Dataset):
                 self.images = sorted(glob(self.imagePath + "/train*/" + addPathImg))
                 self.labels = sorted(glob(self.labelPath + "/train*/" + addPathLabel))
 
-                self.images = self.images[int(0.95 * len(self.images)) :]
-                self.labels = self.labels[int(0.95 * len(self.labels)) :]
+                self.images = self.images[int(0.95 * len(self.images)):]
+                self.labels = self.labels[int(0.95 * len(self.labels)):]
 
         else:  # train
             self.images = sorted(glob(self.imagePath + "/train*/" + addPathImg))
@@ -62,8 +54,8 @@ class baseDataloader(torch.utils.data.Dataset):
                 self.labels = sorted(self.labels)
 
             elif self.dataset == "kitti":
-                self.images = self.images[0 : int(0.95 * len(self.images))]
-                self.labels = self.labels[0 : int(0.95 * len(self.labels))]
+                self.images = self.images[0: int(0.95 * len(self.images))]
+                self.labels = self.labels[0: int(0.95 * len(self.labels))]
 
         ignore_label = 19
 
@@ -117,8 +109,8 @@ class baseDataloader(torch.utils.data.Dataset):
         x = np.random.randint(int(self.img_width / 4), int(self.img_width / 2))
         y = np.random.randint(int(self.img_height / 4), int(self.img_height / 2))
 
-        image = image[y : y + self.img_height, x : x + self.img_width]
-        label = label[y : y + self.img_height, x : x + self.img_width]
+        image = image[y: y + self.img_height, x: x + self.img_width]
+        label = label[y: y + self.img_height, x: x + self.img_width]
 
         return image, label
 
@@ -146,8 +138,8 @@ class baseDataloader(torch.utils.data.Dataset):
         crop_h = int((nh - h) / 2)
         crop_w = int((nw - w) / 2)
 
-        r_image = r_image[crop_h : h + crop_h, crop_w : w + crop_w]
-        r_label = r_label[crop_h : h + crop_h, crop_w : w + crop_w]
+        r_image = r_image[crop_h: h + crop_h, crop_w: w + crop_w]
+        r_label = r_label[crop_h: h + crop_h, crop_w: w + crop_w]
 
         return r_image, r_label
 

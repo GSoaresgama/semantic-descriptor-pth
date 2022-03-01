@@ -1,6 +1,7 @@
+from collections import namedtuple
+
 import numpy as np
 
-from collections import namedtuple
 
 cityscapes_pallete = np.array(
     [

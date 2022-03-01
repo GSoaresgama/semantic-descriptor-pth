@@ -1,8 +1,7 @@
 import pandas as pd
-import pylab
 
 # import scipy
-from scipy import stats, optimize, interpolate
+from scipy import stats
 
 my_data_sem = pd.Series([1.270882, 1.541523, 1.553915, 1.255453, 1.456378, 1.763657, 1.167109, 1.467461, 4.556010, 2.924524])
 

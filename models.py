@@ -1,9 +1,5 @@
-from cProfile import label
 import torch
-import torchvision
 import torch.nn as nn
-import numpy as np
-import torchvision.transforms as transforms
 
 
 class wideResNet50(nn.Module):
@@ -14,7 +10,6 @@ class wideResNet50(nn.Module):
 
         for param in wr50v2.parameters():
             param.requires_grad = True
-
 
         self.new_model = nn.Sequential(*list(wr50v2.children())[:-2])
         # print(self.new_model)

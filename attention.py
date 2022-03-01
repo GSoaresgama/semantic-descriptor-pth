@@ -1,10 +1,6 @@
-from audioop import bias
-from cProfile import label
 import torch
-import torchvision
 import torch.nn as nn
-import numpy as np
-import torchvision.transforms as transforms
+import torchvision
 
 
 class attModel(nn.Module):
