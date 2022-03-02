@@ -77,7 +77,7 @@ def main():
     params = {"batch_size": args.batch_size, "shuffle": True, "num_workers": 4}
     val_params = {"batch_size": 1, "shuffle": False, "num_workers": 4}
 
-    model = models.wideResnet50()
+    model = models.wideResNet50()
 
     if args.load_model_path != "":
         model.load_state_dict(torch.load(args.load_model_path))

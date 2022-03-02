@@ -106,7 +106,7 @@ class baseDataloader(torch.utils.data.Dataset):
         }
 
     # ---------------DATA AUG----------------
-    def zoon(self, image, label):
+    def zoom(self, image, label):
         if image.shape[0] != 2 * self.img_height or image.shape[1] != 2 * self.img_width:
             image = cv2.resize(image, (2 * self.img_width, 2 * self.img_height))
             label = cv2.resize(label, (2 * self.img_height, 2 * self.img_height))
@@ -163,7 +163,7 @@ class baseDataloader(torch.utils.data.Dataset):
 
     def augmentData(self, image, label):
         if random() < 0.5 and self.dataset != "kitti":
-            image, label = self.zoon(image, label)
+            image, label = self.zoom(image, label)
         else:
             image = cv2.resize(image, (self.img_width, self.img_height), interpolation=cv2.INTER_AREA)
             label = cv2.resize(label, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)

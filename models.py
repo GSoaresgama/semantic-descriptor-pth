@@ -6,7 +6,7 @@ import numpy as np
 import torchvision.transforms as transforms
 
 
-class wideResnet50(nn.Module):
+class wideResNet50(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
 
